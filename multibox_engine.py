@@ -163,7 +163,7 @@ class WoWMultiboxEngine:
             if self.config["delay_enabled"]:
                 time.sleep(self.config["delay_ms"] / 1000.0)
             else:
-                time.sleep(0.01)
+                time.sleep(0.03)
             
             # WM_KEYUP
             win32api.PostMessage(hwnd, win32con.WM_KEYUP, vk_code, 0)
@@ -175,10 +175,12 @@ class WoWMultiboxEngine:
         """Envía texto completo a una ventana"""
         for char in text:
             self.send_key_to_window(hwnd, char)
-            time.sleep(0.02)
+            time.sleep(0.04)
     
     def send_command_to_slaves(self, command: str) -> int:
-        """Envía un comando de chat a todas las ventanas slave"""
+        """
+        Versión mejorada con mejores delays y manejo de errores
+        """
         slaves = [w for w in self.wow_windows if not w["is_main"]]
         
         if not slaves:
@@ -186,20 +188,28 @@ class WoWMultiboxEngine:
             return 0
         
         VK_RETURN = 0x0D
+        success_count = 0
         
         for w in slaves:
-            # Presionar ENTER para abrir chat
-            self.send_key_to_window(w["hwnd"], VK_RETURN, is_special=True)
-            time.sleep(0.05)
-            
-            # Escribir el comando
-            self.send_text_to_window(w["hwnd"], command)
-            time.sleep(0.05)
-            
-            # Presionar ENTER para enviar
-            self.send_key_to_window(w["hwnd"], VK_RETURN, is_special=True)
+            try:
+                # Presionar ENTER para abrir chat
+                self.send_key_to_window(w["hwnd"], VK_RETURN, is_special=True)
+                time.sleep(0.1)  # Aumentado de 0.05 a 0.1 segundos
+                
+                # Escribir el comando
+                self.send_text_to_window(w["hwnd"], command)
+                time.sleep(0.1)  # Aumentado de 0.05 a 0.1 segundos
+                
+                # Presionar ENTER para enviar
+                self.send_key_to_window(w["hwnd"], VK_RETURN, is_special=True)
+                time.sleep(0.05)  # Pequeño delay entre ventanas
+                
+                success_count += 1
+                
+            except Exception as e:
+                self.log("Error", f"Error enviando comando a ventana {w['title']}: {e}")
         
-        return len(slaves)
+        return success_count
     
     def send_follow_command(self) -> bool:
         """Envía comando /follow"""
